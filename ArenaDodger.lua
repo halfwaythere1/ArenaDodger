@@ -23,7 +23,7 @@ local defaults = {
 
 function ArenaDodger:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("ArenaDodgerDB", defaults)
-    self:RegisterChatCommand("arenadodger", "ShowFrame")
+    self:RegisterChatCommand("adodger", "ShowFrame")
     self:RegisterEvent("WHO_LIST_UPDATE", "OnWhoListUpdate")
 end
 
