@@ -16,6 +16,6 @@ L["Offline"] = "Desconectado"
 -- Arena map names
 L["Nagrand Arena"] = "Arena de Nagrand"
 L["Ruins of Lordaeron"] = "Ruinas de Lordaeron"
-L["Blade's Edge Arena"] = "Arenas Filospada"
+L["Blade's Edge Arena"] = "Arena Filospada"
 L["Dalaran Arena"] = "Arena de Dalaran"
 L["Ring of Valor"] = "Círculo del Valor"
