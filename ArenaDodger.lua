@@ -23,7 +23,7 @@ local defaults = {
 
 function ArenaDodger:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("ArenaDodgerDB", defaults)
-    self:RegisterChatCommand("arenadodge", "ShowFrame")
+    self:RegisterChatCommand("arenadodger", "ShowFrame")
     self:RegisterEvent("WHO_LIST_UPDATE", "OnWhoListUpdate")
 end
 
@@ -55,15 +55,14 @@ function ArenaDodger:CreateFrame()
     editbox:SetCallback("OnEnterPressed", function(widget, event, text)
         self:AddPlayer(text)
         widget:SetText("")
-        widget:ClearFocus()
+        widget.editbox:ClearFocus() -- Use the underlying Blizzard EditBox's ClearFocus
     end)
-    
+
     -- Refresh button
     local refreshButton = AceGUI:Create("Button")
     refreshButton:SetText(L["Refresh"])
     refreshButton:SetWidth(100)
     refreshButton:SetCallback("OnClick", function() 
-        self:Print("Refresh button clicked")
         self:RefreshLocations() 
     end)
     frame:AddChild(refreshButton)
@@ -106,17 +105,27 @@ function ArenaDodger:UpdatePlayerList()
     for name, _ in pairs(self.db.global.dodgeList) do
         local playerGroup = AceGUI:Create("SimpleGroup")
         playerGroup:SetFullWidth(true)
-        playerGroup:SetLayout("Flow")
+        playerGroup:SetLayout("Flow") -- Flow layout will stack widgets horizontally, we'll adjust below
 
-        local label = AceGUI:Create("Label")
+        -- Label for the name
+        local nameLabel = AceGUI:Create("Label")
+        nameLabel:SetText(name)
+        nameLabel:SetWidth(220)
+        nameLabel:SetFontObject(GameFontNormalLarge) -- Larger font
+        playerGroup:AddChild(nameLabel)
+
+        -- Label for the location
+        local locationLabel = AceGUI:Create("Label")
         local location = self.db.global.playerLocations[name] or L["Unknown"]
-        label:SetText(name .. " - " .. location)
-        label:SetWidth(220) -- Reduced width to fit the wider "Remove" button
-        playerGroup:AddChild(label)
+        locationLabel:SetText(location)
+        locationLabel:SetWidth(220)
+        locationLabel:SetFontObject(GameFontNormalLarge) -- Larger font
+        playerGroup:AddChild(locationLabel)
 
+        -- Add remove button
         local removeButton = AceGUI:Create("Button")
-        removeButton:SetText(L["Remove"]) -- Changed from "X" to "Remove"
-        removeButton:SetWidth(85) -- Increased width to fit the text
+        removeButton:SetText(L["Remove"])
+        removeButton:SetWidth(85)
         removeButton:SetCallback("OnClick", function() self:RemovePlayer(name) end)
         playerGroup:AddChild(removeButton)
 
@@ -129,11 +138,6 @@ function ArenaDodger:RefreshLocations()
     for name, _ in pairs(self.db.global.dodgeList) do
         table.insert(players, name)
     end
-    if #players > 0 then
-        self:Print("Refreshing locations for: " .. table.concat(players, ", "))
-    else
-        self:Print("No players to refresh")
-    end
 
     -- Track which players we're querying
     self.pendingQueries = {}
@@ -144,10 +148,8 @@ function ArenaDodger:RefreshLocations()
 end
 
 function ArenaDodger:CheckPlayerLocation(name)
-    self:Print("Attempting to check location for: " .. name)
     SetWhoToUI(1) -- Enable UI response to ensure WHO_LIST_UPDATE fires
     SendWho('n-"' .. name .. '"') -- Query by exact name
-    self:Print("Sent /who request for: " .. name)
     if WhoFrame:IsShown() then
         HideUIPanel(WhoFrame)
     end
@@ -155,19 +157,15 @@ end
 
 function ArenaDodger:OnWhoListUpdate()
     local numWhos = GetNumWhoResults()
-    self:Print("WHO_LIST_UPDATE triggered, results: " .. numWhos)
 
     -- Process results for each queried player
     for i = 1, numWhos do
         local name, _, _, _, _, zone = GetWhoInfo(i)
-        self:Print("Who result: " .. name .. " in " .. (zone or "nil"))
         if self.db.global.dodgeList[name] then
             if ARENA_MAPS[zone] then
                 self.db.global.playerLocations[name] = zone
-                self:Print(name .. " confirmed in arena: " .. zone)
             else
                 self.db.global.playerLocations[name] = L["Not In Arena"] or L["Unknown"]
-                self:Print(name .. " not in arena, zone: " .. (zone or "nil"))
             end
             -- Mark this player as processed
             if self.pendingQueries then
@@ -181,7 +179,6 @@ function ArenaDodger:OnWhoListUpdate()
     if self.pendingQueries then
         for name, _ in pairs(self.pendingQueries) do
             self.db.global.playerLocations[name] = L["Offline"]
-            self:Print(name .. " appears to be offline (no results found)")
         end
         self.pendingQueries = nil -- Clear the queries
         self:UpdatePlayerList()
