@@ -12,5 +12,6 @@ if L then
     L["Dalaran Arena"] = "Dalaran Arena"
     L["Ring of Valor"] = "Ring of Valor"
     L["Remove"] = "Remove"
+    L["Offline"] = "Offline"
     L["Unknown"] = "Unknown"
 end

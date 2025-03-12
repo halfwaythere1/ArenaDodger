@@ -3,6 +3,7 @@ local ArenaDodger = LibStub("AceAddon-3.0"):NewAddon(ADDON_NAME, "AceConsole-3.0
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
 local AceGUI = LibStub("AceGUI-3.0")
 
+
 -- Arena maps for WoW 3.3.5a
 local ARENA_MAPS = {
     [L["Nagrand Arena"]] = true,
@@ -31,7 +32,7 @@ function ArenaDodger:ShowFrame()
         self:CreateFrame()
     end
     self.frame:Show()
-    self:UpdatePlayerList()
+    self:UpdatePlayerList() -- Ensure the list is populated when the frame is shown
 end
 
 function ArenaDodger:CreateFrame()
@@ -42,7 +43,7 @@ function ArenaDodger:CreateFrame()
     frame:SetLayout("Flow")
     frame:SetCallback("OnClose", function(widget) 
         AceGUI:Release(widget)
-        self.frame = nil
+        self.frame = nil -- Clear the frame reference when closed
     end)
     self.frame = frame
 
@@ -50,12 +51,13 @@ function ArenaDodger:CreateFrame()
     local editbox = AceGUI:Create("EditBox")
     editbox:SetLabel(L["Enter a player name:"])
     editbox:SetWidth(200)
+    frame:AddChild(editbox)
     editbox:SetCallback("OnEnterPressed", function(widget, event, text)
         self:AddPlayer(text)
         widget:SetText("")
+        widget:ClearFocus()
     end)
-    frame:AddChild(editbox)
-
+    
     -- Refresh button
     local refreshButton = AceGUI:Create("Button")
     refreshButton:SetText(L["Refresh"])
@@ -65,12 +67,6 @@ function ArenaDodger:CreateFrame()
         self:RefreshLocations() 
     end)
     frame:AddChild(refreshButton)
-
-    -- Add some spacing to avoid layout issues
-    local spacer = AceGUI:Create("Label")
-    spacer:SetText("")
-    spacer:SetWidth(10)
-    frame:AddChild(spacer)
 
     -- Player list
     self.playerList = AceGUI:Create("SimpleGroup")
@@ -115,12 +111,12 @@ function ArenaDodger:UpdatePlayerList()
         local label = AceGUI:Create("Label")
         local location = self.db.global.playerLocations[name] or L["Unknown"]
         label:SetText(name .. " - " .. location)
-        label:SetWidth(200) -- Reduced to make space for "Remove"
+        label:SetWidth(220) -- Reduced width to fit the wider "Remove" button
         playerGroup:AddChild(label)
 
         local removeButton = AceGUI:Create("Button")
-        removeButton:SetText("Remove") -- Changed from "X" to "Remove"
-        removeButton:SetWidth(80) -- Increased width to fit "Remove"
+        removeButton:SetText(L["Remove"]) -- Changed from "X" to "Remove"
+        removeButton:SetWidth(85) -- Increased width to fit the text
         removeButton:SetCallback("OnClick", function() self:RemovePlayer(name) end)
         playerGroup:AddChild(removeButton)
 
@@ -139,7 +135,10 @@ function ArenaDodger:RefreshLocations()
         self:Print("No players to refresh")
     end
 
+    -- Track which players we're querying
+    self.pendingQueries = {}
     for name, _ in pairs(self.db.global.dodgeList) do
+        self.pendingQueries[name] = true
         self:CheckPlayerLocation(name)
     end
 end
@@ -149,47 +148,42 @@ function ArenaDodger:CheckPlayerLocation(name)
     SetWhoToUI(1) -- Enable UI response to ensure WHO_LIST_UPDATE fires
     SendWho('n-"' .. name .. '"') -- Query by exact name
     self:Print("Sent /who request for: " .. name)
-    -- Hide the Who window after a short delay
-    self:ScheduleTimer(function()
-        if WhoFrame:IsShown() then
-            HideUIPanel(WhoFrame)
-        end
-    end, 0.1) -- 0.1-second delay to ensure the frame is shown
+    if WhoFrame:IsShown() then
+        HideUIPanel(WhoFrame)
+    end
 end
 
 function ArenaDodger:OnWhoListUpdate()
     local numWhos = GetNumWhoResults()
     self:Print("WHO_LIST_UPDATE triggered, results: " .. numWhos)
 
-    -- Track if we found each player in the dodgeList
-    local foundPlayers = {}
-    for name, _ in pairs(self.db.global.dodgeList) do
-        foundPlayers[name] = false
-    end
-
-    -- Process the results
+    -- Process results for each queried player
     for i = 1, numWhos do
         local name, _, _, _, _, zone = GetWhoInfo(i)
         self:Print("Who result: " .. name .. " in " .. (zone or "nil"))
         if self.db.global.dodgeList[name] then
-            foundPlayers[name] = true
             if ARENA_MAPS[zone] then
                 self.db.global.playerLocations[name] = zone
                 self:Print(name .. " confirmed in arena: " .. zone)
             else
-                self.db.global.playerLocations[name] = zone or "Unknown"
+                self.db.global.playerLocations[name] = L["Not In Arena"] or L["Unknown"]
                 self:Print(name .. " not in arena, zone: " .. (zone or "nil"))
             end
+            -- Mark this player as processed
+            if self.pendingQueries then
+                self.pendingQueries[name] = nil
+            end
+            self:UpdatePlayerList()
         end
     end
 
-    -- Set "Offline" for players not found in the results
-    for name, found in pairs(foundPlayers) do
-        if not found then
-            self.db.global.playerLocations[name] = "Offline"
-            self:Print(name .. " is offline")
+    -- Check for players with no results (e.g., offline)
+    if self.pendingQueries then
+        for name, _ in pairs(self.pendingQueries) do
+            self.db.global.playerLocations[name] = L["Offline"]
+            self:Print(name .. " appears to be offline (no results found)")
         end
+        self.pendingQueries = nil -- Clear the queries
+        self:UpdatePlayerList()
     end
-
-    self:UpdatePlayerList()
 end

@@ -22,4 +22,5 @@ Libs\AceTimer-3.0\AceTimer-3.0.xml
 
 # Load localization and main addon file
 Locales\enUS.lua
+Locales\esMX.lua
 ArenaDodger.lua
