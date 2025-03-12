@@ -122,6 +122,12 @@ function ArenaDodger:UpdatePlayerList()
         locationLabel:SetFontObject(GameFontNormalLarge) -- Larger font
         playerGroup:AddChild(locationLabel)
 
+        local separatorLabel = AceGUI:Create("Label")
+        separatorLabel:SetText("----------------------------------------------------")
+        separatorLabel:SetWidth(220)
+        separatorLabel:SetFontObject(GameFontNormalSmall)
+        playerGroup:AddChild(separatorLabel)
+
         -- Add remove button
         local removeButton = AceGUI:Create("Button")
         removeButton:SetText(L["Remove"])
@@ -150,9 +156,11 @@ end
 function ArenaDodger:CheckPlayerLocation(name)
     SetWhoToUI(1) -- Enable UI response to ensure WHO_LIST_UPDATE fires
     SendWho('n-"' .. name .. '"') -- Query by exact name
-    if WhoFrame:IsShown() then
-        HideUIPanel(WhoFrame)
-    end
+    self:ScheduleTimer(function()
+        if FriendsFrame:IsShown() then
+            HideUIPanel(FriendsFrame)
+        end
+    end, 0.3) -- 0.1 second delay
 end
 
 function ArenaDodger:OnWhoListUpdate()
